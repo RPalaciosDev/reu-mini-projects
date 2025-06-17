@@ -99,7 +99,7 @@ class Environment:
         """
         Run one step of the simulation where each agent:
         1. Moves to a random adjacent cell if possible
-        2. Interacts with any agents in adjacent cells
+        2. Interacts with agents within their influence range (based on integrity)
         """
         # Shuffle agents to randomize order of movement and interaction
         random.shuffle(self.agents)
@@ -112,17 +112,29 @@ class Environment:
         # Shuffle again before interactions to ensure random order
         random.shuffle(self.agents)
         
-        # Handle interactions
+        # Handle interactions with integrity-based range
         for agent in self.agents:
             x, y = agent.position
-            # Check adjacent cells for other agents
-            for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < self.width and 0 <= ny < self.height:
-                    # Find any agent at this position
-                    for other_agent in self.agents:
-                        if other_agent.position == (nx, ny):
-                            agent.interact(other_agent)
+            
+            # Calculate interaction range based on integrity (0-3 cells)
+            max_range = min(3, int(agent.integrity * 3))
+            
+            # Check all cells within the agent's influence range
+            for dx in range(-max_range, max_range + 1):
+                for dy in range(-max_range, max_range + 1):
+                    # Skip the agent's own cell
+                    if dx == 0 and dy == 0:
+                        continue
+                    
+                    nx, ny = x + dx, y + dy
+                    
+                    # Check if the cell is within grid bounds and occupied
+                    if 0 <= nx < self.width and 0 <= ny < self.height and self.grid[ny, nx] == 1:
+                        # Find the agent at this position (much faster with grid lookup)
+                        for other_agent in self.agents:
+                            if other_agent.position == (nx, ny):
+                                agent.interact(other_agent)
+                                break  # Found it, stop searching
 
     def get_opinion_distribution(self) -> dict:
         """

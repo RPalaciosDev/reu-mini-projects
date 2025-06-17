@@ -156,6 +156,11 @@ def animate_simulation(env: Environment, steps: int, interval: int = 500) -> Non
     opinion_text = ax1.text(0.02, 0.98, '', transform=ax1.transAxes, 
                           verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
     
+    # Add step count text
+    step_text = ax1.text(0.5, 0.02, '', transform=ax1.transAxes, 
+                        horizontalalignment='center', fontsize=12, fontweight='bold',
+                        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    
     def update(frame):
         env.step()
         # Update grid
@@ -189,14 +194,14 @@ def animate_simulation(env: Environment, steps: int, interval: int = 500) -> Non
         opinion_text.set_text('\n'.join([f'Opinion {k}: {v} agents' 
                                        for k, v in sorted(opinion_dist.items())]))
         
-        # Update the figure title
-        plt.suptitle(f'Step {frame + 1}/{steps}', y=0.95, fontsize=12, fontweight='bold')
+        # Update step count text
+        step_text.set_text(f'Step {frame + 1}/{steps}')
         
         # Stop animation if we've reached the last frame
         if frame >= steps - 1:
             anim.event_source.stop()
         
-        return [img, opinion_text] + lines
+        return [img, opinion_text, step_text] + lines
     
     anim = animation.FuncAnimation(fig, update, frames=steps, interval=interval, blit=True)
     plt.show()
@@ -206,7 +211,7 @@ def main():
     env = create_environment(width=50, height=50, num_agents=1000, high_integrity_ratio=0.1)
     
     # Run the simulation with animation
-    animate_simulation(env, steps=100, interval=100)
+    animate_simulation(env, steps=1000, interval=100)
 
 if __name__ == "__main__":
     main() 
