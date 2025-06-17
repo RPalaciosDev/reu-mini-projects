@@ -48,6 +48,10 @@ def create_environment(width: int = 100, height: int = 100, num_agents: int = 10
                 agent = Agent(position, opinion=i, is_high_integrity=True)
                 env.add_agent(agent)
     
+    # Add friends to all agents after they are created
+    for agent in env.agents:
+        agent.add_friends(env.agents, num_friends=8)
+    
     return env
 
 def visualize_environment(env: Environment, show: bool = True) -> None:
@@ -204,6 +208,10 @@ def animate_simulation(env: Environment, steps: int, interval: int = 500) -> Non
         return [img, opinion_text, step_text] + lines
     
     anim = animation.FuncAnimation(fig, update, frames=steps, interval=interval, blit=True)
+    
+    # Save as GIF
+    anim.save('simulation.gif', writer='pillow', fps=1000//interval)
+    
     plt.show()
 
 def main():
@@ -211,7 +219,7 @@ def main():
     env = create_environment(width=50, height=50, num_agents=1000, high_integrity_ratio=0.1)
     
     # Run the simulation with animation
-    animate_simulation(env, steps=1000, interval=100)
+    animate_simulation(env, steps=400, interval=50)
 
 if __name__ == "__main__":
     main() 

@@ -99,7 +99,8 @@ class Environment:
         """
         Run one step of the simulation where each agent:
         1. Moves to a random adjacent cell if possible
-        2. Interacts with agents within their influence range (based on integrity)
+        2. Interacts with a subset of their friends (reduced effect)
+        3. Interacts with agents within their influence range (based on integrity)
         """
         # Shuffle agents to randomize order of movement and interaction
         random.shuffle(self.agents)
@@ -112,7 +113,19 @@ class Environment:
         # Shuffle again before interactions to ensure random order
         random.shuffle(self.agents)
         
-        # Handle interactions with integrity-based range
+        # Handle friend interactions (each agent interacts with 1-3 random friends)
+        for agent in self.agents:
+            if agent.friends:
+                # Pick 1-3 random friends to interact with this step
+                num_friend_interactions = random.randint(1, min(3, len(agent.friends)))
+                friends_to_interact_with = random.sample(agent.friends, num_friend_interactions)
+                for friend in friends_to_interact_with:
+                    agent.interact(friend, is_friend_interaction=True)
+        
+        # Shuffle again before spatial interactions
+        random.shuffle(self.agents)
+        
+        # Handle spatial interactions with integrity-based range
         for agent in self.agents:
             x, y = agent.position
             
@@ -133,7 +146,7 @@ class Environment:
                         # Find the agent at this position (much faster with grid lookup)
                         for other_agent in self.agents:
                             if other_agent.position == (nx, ny):
-                                agent.interact(other_agent)
+                                agent.interact(other_agent, is_friend_interaction=False)
                                 break  # Found it, stop searching
 
     def get_opinion_distribution(self) -> dict:
