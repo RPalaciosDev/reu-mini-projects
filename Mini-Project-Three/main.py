@@ -209,9 +209,6 @@ def animate_simulation(env: Environment, steps: int, interval: int = 500) -> Non
     
     anim = animation.FuncAnimation(fig, update, frames=steps, interval=interval, blit=True)
     
-    # Save as GIF
-    anim.save('simulation.gif', writer='pillow', fps=1000//interval)
-    
     plt.show()
 
 def main():
