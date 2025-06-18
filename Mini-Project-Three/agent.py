@@ -16,6 +16,17 @@ class Agent:
         self.is_high_integrity = is_high_integrity
         self.friends: List['Agent'] = []  # List of friend agents
         
+        # Schedule-related attributes
+        self.is_student = random.choice([True, False])  # Half are students, half are workers
+        self.current_location = 'home'  # Current structure type
+        self.target_location = 'home'   # Where they're trying to go
+        self.schedule_step = 0          # Current step in their daily schedule
+        
+        # Assign specific structures (will be set by environment)
+        self.assigned_home = None
+        self.assigned_work_or_school = None
+        self.assigned_leisure = None
+        
         # Set integrity based on agent type
         if is_high_integrity:
             self.integrity = 1.0  # 100% integrity, never changes
@@ -71,22 +82,176 @@ class Agent:
             self.add_friend(friend)
             friends_added += 1
 
-    def propose_move(self) -> Tuple[int, int]:
+    def propose_move(self, environment) -> Tuple[int, int]:
         """
-        Propose a move to a random adjacent cell.
+        Propose a move toward the target location based on schedule.
         
+        Args:
+            environment: The environment containing structure bounds
+            
         Returns:
             Tuple[int, int]: Proposed new position (x, y)
         """
-        x, y = self.position
-        # Get all possible adjacent positions
-        possible_moves = []
-        for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
-            nx, ny = x + dx, y + dy
-            possible_moves.append((nx, ny))
+        # Check if we're already in the target structure
+        if self._is_in_target_structure(environment):
+            return self._random_move_within_structure(environment)
         
-        # Return a random adjacent position
-        return random.choice(possible_moves)
+        # Move toward target structure
+        return self._move_toward_structure(environment)
+    
+    def _is_in_target_structure(self, environment) -> bool:
+        """
+        Check if the agent is currently in their target structure.
+        
+        Args:
+            environment: The environment containing structure bounds
+            
+        Returns:
+            bool: True if agent is in target structure
+        """
+        if self.target_location == 'home' and self.assigned_home:
+            return self.position in self.assigned_home
+        elif self.target_location in ['work', 'school'] and self.assigned_work_or_school:
+            return self.position in self.assigned_work_or_school
+        elif self.target_location == 'leisure' and self.assigned_leisure:
+            return self.position in self.assigned_leisure
+        else:
+            # Fallback to environment bounds if no assignment
+            if self.target_location == 'home':
+                return self.position in environment.home_bounds
+            elif self.target_location == 'work':
+                return self.position in environment.work_bounds
+            elif self.target_location == 'school':
+                return self.position in environment.school_bounds
+            elif self.target_location == 'leisure':
+                return self.position in environment.leisure_bounds
+            return True  # Default to staying put
+    
+    def _move_toward_structure(self, environment) -> Tuple[int, int]:
+        """
+        Move toward the target structure area.
+        
+        Args:
+            environment: The environment containing structure bounds
+            
+        Returns:
+            Tuple[int, int]: Proposed new position
+        """
+        # Get the bounds of the target structure (use assigned structure if available)
+        bounds = None
+        if self.target_location == 'home' and self.assigned_home:
+            bounds = self.assigned_home
+        elif self.target_location in ['work', 'school'] and self.assigned_work_or_school:
+            bounds = self.assigned_work_or_school
+        elif self.target_location == 'leisure' and self.assigned_leisure:
+            bounds = self.assigned_leisure
+        else:
+            # Fallback to environment bounds
+            if self.target_location == 'home':
+                bounds = environment.home_bounds
+            elif self.target_location == 'work':
+                bounds = environment.work_bounds
+            elif self.target_location == 'school':
+                bounds = environment.school_bounds
+            elif self.target_location == 'leisure':
+                bounds = environment.leisure_bounds
+        
+        if not bounds:
+            return self.position
+        
+        # Find the center of the target structure
+        center_x = sum(x for x, y in bounds) // len(bounds)
+        center_y = sum(y for x, y in bounds) // len(bounds)
+        
+        # Move toward the center of the structure
+        return self._move_toward_target((center_x, center_y))
+    
+    def _move_toward_target(self, target_pos: Tuple[int, int]) -> Tuple[int, int]:
+        """
+        Move toward a target position.
+        
+        Args:
+            target_pos (Tuple[int, int]): Target position to move toward
+            
+        Returns:
+            Tuple[int, int]: Proposed new position
+        """
+        x, y = self.position
+        tx, ty = target_pos
+        
+        # Calculate direction toward target
+        dx = 0
+        dy = 0
+        
+        if x < tx:
+            dx = 1
+        elif x > tx:
+            dx = -1
+            
+        if y < ty:
+            dy = 1
+        elif y > ty:
+            dy = -1
+        
+        # Propose move in the direction of the target
+        new_x = x + dx
+        new_y = y + dy
+        
+        return (new_x, new_y)
+    
+    def _random_move_within_structure(self, environment) -> Tuple[int, int]:
+        """
+        Move randomly within the current structure.
+        
+        Args:
+            environment: The environment containing structure bounds
+            
+        Returns:
+            Tuple[int, int]: Proposed new position
+        """
+        # Get bounds for current target location (use assigned structure if available)
+        bounds = None
+        if self.target_location == 'home' and self.assigned_home:
+            bounds = self.assigned_home
+        elif self.target_location in ['work', 'school'] and self.assigned_work_or_school:
+            bounds = self.assigned_work_or_school
+        elif self.target_location == 'leisure' and self.assigned_leisure:
+            bounds = self.assigned_leisure
+        else:
+            # Fallback to environment bounds
+            if self.target_location == 'home':
+                bounds = environment.home_bounds
+            elif self.target_location == 'work':
+                bounds = environment.work_bounds
+            elif self.target_location == 'school':
+                bounds = environment.school_bounds
+            elif self.target_location == 'leisure':
+                bounds = environment.leisure_bounds
+        
+        if bounds:
+            # Filter out the current position to avoid staying in the same place
+            available_positions = [pos for pos in bounds if pos != self.position]
+            if available_positions:
+                return random.choice(available_positions)
+            else:
+                # If no other positions available, stay put
+                return self.position
+        else:
+            # Fallback to random adjacent move
+            x, y = self.position
+            possible_moves = []
+            for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
+                new_x, new_y = x + dx, y + dy
+                # Only add valid moves (within bounds and not current position)
+                if (0 <= new_x < environment.width and 
+                    0 <= new_y < environment.height and 
+                    (new_x, new_y) != self.position):
+                    possible_moves.append((new_x, new_y))
+            
+            if possible_moves:
+                return random.choice(possible_moves)
+            else:
+                return self.position
     
     def interact(self, other_agent: 'Agent', is_friend_interaction: bool = False) -> None:
         """
@@ -180,3 +345,51 @@ class Agent:
         
         if random.random() < change_probability:
             self.opinion = other_agent.opinion 
+
+    def update_schedule(self, step: int) -> None:
+        """
+        Update the agent's schedule based on the current simulation step.
+        
+        Args:
+            step (int): Current simulation step
+        """
+        # Daily schedule: 120 steps per day (longer day cycle for more realistic movement)
+        day_step = step % 120
+        
+        if self.is_student:
+            # Student schedule (longer periods)
+            if 10 <= day_step < 20:  # Morning: go to school
+                self.target_location = 'school'
+            elif 20 <= day_step < 80:  # School hours: stay at school (60 steps)
+                self.target_location = 'school'
+            elif 80 <= day_step < 100:  # Afternoon: go to leisure (20 steps)
+                self.target_location = 'leisure'
+            elif 100 <= day_step < 110:  # Evening: go home
+                self.target_location = 'home'
+            else:  # Night: stay home
+                self.target_location = 'home'
+        else:
+            # Worker schedule (longer periods)
+            if 10 <= day_step < 20:  # Morning: go to work
+                self.target_location = 'work'
+            elif 20 <= day_step < 80:  # Work hours: stay at work (60 steps)
+                self.target_location = 'work'
+            elif 80 <= day_step < 100:  # Afternoon: go to leisure (20 steps)
+                self.target_location = 'leisure'
+            elif 100 <= day_step < 110:  # Evening: go home
+                self.target_location = 'home'
+            else:  # Night: stay home
+                self.target_location = 'home'
+
+    def assign_structures(self, home_bounds, work_school_bounds, leisure_bounds):
+        """
+        Assign specific structure areas to this agent.
+        
+        Args:
+            home_bounds: List of positions for assigned home structure
+            work_school_bounds: List of positions for assigned work/school structure
+            leisure_bounds: List of positions for assigned leisure structure
+        """
+        self.assigned_home = home_bounds
+        self.assigned_work_or_school = work_school_bounds
+        self.assigned_leisure = leisure_bounds 

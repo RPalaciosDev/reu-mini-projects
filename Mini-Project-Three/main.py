@@ -28,6 +28,35 @@ def create_environment(width: int = 100, height: int = 100, num_agents: int = 10
     opinions_per_agent = num_regular_agents // 3
     high_integrity_per_opinion = num_high_integrity // 3
     
+    # Create structure groups for assignment
+    def divide_structure_into_groups(bounds, num_groups):
+        """Divide structure bounds into groups for assignment."""
+        if not bounds or num_groups <= 0:
+            return []
+        
+        # Sort bounds to group nearby positions
+        sorted_bounds = sorted(bounds)
+        group_size = len(sorted_bounds) // num_groups
+        groups = []
+        
+        for i in range(num_groups):
+            start_idx = i * group_size
+            if i == num_groups - 1:  # Last group gets remaining positions
+                end_idx = len(sorted_bounds)
+            else:
+                end_idx = (i + 1) * group_size
+            groups.append(sorted_bounds[start_idx:end_idx])
+        
+        return groups
+    
+    # Divide structures into groups
+    home_groups = divide_structure_into_groups(env.home_bounds, 12)  # 12 home areas
+    work_groups = divide_structure_into_groups(env.work_bounds, 6)   # 6 work areas
+    school_groups = divide_structure_into_groups(env.school_bounds, 6) # 6 school areas
+    leisure_groups = divide_structure_into_groups(env.leisure_bounds, 8) # 8 leisure areas
+    
+    all_agents = []
+    
     # Create regular agents
     for i in range(3):
         for _ in range(opinions_per_agent):
@@ -36,7 +65,7 @@ def create_environment(width: int = 100, height: int = 100, num_agents: int = 10
             if empty_cells:
                 position = empty_cells[np.random.randint(len(empty_cells))]
                 agent = Agent(position, opinion=i, is_high_integrity=False)
-                env.add_agent(agent)
+                all_agents.append(agent)
     
     # Create high integrity agents
     for i in range(3):
@@ -46,7 +75,30 @@ def create_environment(width: int = 100, height: int = 100, num_agents: int = 10
             if empty_cells:
                 position = empty_cells[np.random.randint(len(empty_cells))]
                 agent = Agent(position, opinion=i, is_high_integrity=True)
-                env.add_agent(agent)
+                all_agents.append(agent)
+    
+    # Assign structures to agents
+    for idx, agent in enumerate(all_agents):
+        # Assign home (cycle through available home groups)
+        if home_groups:
+            home_group = home_groups[idx % len(home_groups)]
+            agent.assigned_home = home_group
+        
+        # Assign work or school based on agent type
+        if agent.is_student and school_groups:
+            school_group = school_groups[idx % len(school_groups)]
+            agent.assigned_work_or_school = school_group
+        elif work_groups:
+            work_group = work_groups[idx % len(work_groups)]
+            agent.assigned_work_or_school = work_group
+        
+        # Assign leisure (cycle through available leisure groups)
+        if leisure_groups:
+            leisure_group = leisure_groups[idx % len(leisure_groups)]
+            agent.assigned_leisure = leisure_group
+        
+        # Add agent to environment
+        env.add_agent(agent)
     
     # Add friends to all agents after they are created
     for agent in env.agents:
@@ -165,6 +217,11 @@ def animate_simulation(env: Environment, steps: int, interval: int = 500) -> Non
                         horizontalalignment='center', fontsize=12, fontweight='bold',
                         bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
     
+    # Add schedule information text
+    schedule_text = ax1.text(0.02, 0.02, '', transform=ax1.transAxes, 
+                           verticalalignment='bottom', fontsize=10,
+                           bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    
     def update(frame):
         env.step()
         # Update grid
@@ -201,11 +258,32 @@ def animate_simulation(env: Environment, steps: int, interval: int = 500) -> Non
         # Update step count text
         step_text.set_text(f'Step {frame + 1}/{steps}')
         
+        # Update schedule information
+        day_step = frame % 120  # Updated to match new day cycle
+        day_number = frame // 120 + 1  # Which day we're on
+        # Convert to 24-hour format (120 steps = 24 hours, so 1 step = 0.2 hours = 12 minutes)
+        hour = int((day_step / 120) * 24)
+        minute = int(((day_step / 120) * 24 - hour) * 60)
+        time_str = f"Day {day_number}, {hour:02d}:{minute:02d}"
+        
+        # Count agents in each location
+        location_counts = {'home': 0, 'work': 0, 'school': 0, 'leisure': 0}
+        for agent in env.agents:
+            location_counts[agent.target_location] += 1
+        
+        schedule_info = f"Time: {time_str}\n"
+        schedule_info += f"Step: {day_step}/120\n"
+        schedule_info += f"Home: {location_counts['home']}\n"
+        schedule_info += f"Work: {location_counts['work']}\n"
+        schedule_info += f"School: {location_counts['school']}\n"
+        schedule_info += f"Leisure: {location_counts['leisure']}"
+        schedule_text.set_text(schedule_info)
+        
         # Stop animation if we've reached the last frame
         if frame >= steps - 1:
             anim.event_source.stop()
         
-        return [img, opinion_text, step_text] + lines
+        return [img, opinion_text, step_text, schedule_text] + lines
     
     anim = animation.FuncAnimation(fig, update, frames=steps, interval=interval, blit=True)
     
@@ -213,10 +291,10 @@ def animate_simulation(env: Environment, steps: int, interval: int = 500) -> Non
 
 def main():
     # Create and initialize the environment
-    env = create_environment(width=50, height=50, num_agents=1000, high_integrity_ratio=0.1)
+    env = create_environment(width=100, height=100, num_agents=1200, high_integrity_ratio=0.1)
     
-    # Run the simulation with animation
-    animate_simulation(env, steps=400, interval=50)
+    # Run the simulation with animation (500 steps = ~4 full days)
+    animate_simulation(env, steps=500, interval=50)
 
 if __name__ == "__main__":
     main() 
