@@ -166,7 +166,7 @@ hidden_size = 32  # Number of neurons in the hidden layer, adjustable
 output_size = 1   # Single output neuron: 0 for undirected, 1 for directed
 learning_rate = 0.01  # Step size for gradient descent
 epochs = 10000  # Number of training iterations
-num_samples = 10  # Total number of graph samples (5 directed, 5 undirected)
+num_samples = 100  # Total number of graph samples (50 directed, 50 undirected)
 
 # ===============================================
 # LOAD TRAINING DATA
@@ -180,7 +180,7 @@ try:
     print("Using pre-generated dataset for reproducible results")
 except FileNotFoundError:
     print("Pickle file not found. Generating new dataset...")
-    generator.generate_dataset(n=4, num_symmetric=num_samples//2, num_non_symmetric=num_samples//2)
+    generator.generate_dataset(n=4, num_symmetric=50, num_non_symmetric=50)
     generator.save_to_pickle("neural_network_training_data.pkl")
 
 # Get data ready for neural network
