@@ -4,7 +4,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-import os
 from typing import Tuple
 from sklearn.model_selection import train_test_split
 
@@ -94,16 +93,18 @@ class AdjacencyMatrixGenerator:
         
         return flattened_matrices, labels_array
 
-# Sigmoid activation function to map values to (0, 1)
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-
-# Derivative of sigmoid for backpropagation
-def sigmoid_derivative_from_output(x):
-    return x * (1 - x)
-
 # Neural Network class to classify graphs
 class NeuralNetwork:
+    @staticmethod
+    def sigmoid(x):
+        """Sigmoid activation function to map values to (0, 1)"""
+        return 1 / (1 + np.exp(-x))
+    
+    @staticmethod
+    def sigmoid_derivative_from_output(x):
+        """Derivative of sigmoid for backpropagation"""
+        return x * (1 - x)
+    
     def __init__(self, input_size, hidden_size, output_size):
         # Use He initialization for better initial performance
         self.W1 = np.random.randn(input_size, hidden_size) * np.sqrt(2.0 / input_size)
@@ -120,16 +121,16 @@ class NeuralNetwork:
     
     def forward(self, X):
         self.z1 = np.dot(X, self.W1) + self.b1
-        self.a1 = sigmoid(self.z1)
+        self.a1 = self.sigmoid(self.z1)
         self.z2 = np.dot(self.a1, self.W2) + self.b2
-        self.a2 = sigmoid(self.z2)
+        self.a2 = self.sigmoid(self.z2)
         return self.a2
 
     def backward(self, X, y, output, learning_rate, weight_decay):
         self.error = y - output
-        self.delta2 = self.error * sigmoid_derivative_from_output(output)
+        self.delta2 = self.error * self.sigmoid_derivative_from_output(output)
         self.error_hidden = np.dot(self.delta2, self.W2.T)
-        self.delta1 = self.error_hidden * sigmoid_derivative_from_output(self.a1)
+        self.delta1 = self.error_hidden * self.sigmoid_derivative_from_output(self.a1)
 
         # More efficient momentum updates
         self.v_W2 = self.momentum * self.v_W2 + learning_rate * (np.dot(self.a1.T, self.delta2) - weight_decay * self.W2)
