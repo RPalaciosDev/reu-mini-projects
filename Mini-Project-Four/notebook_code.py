@@ -678,7 +678,7 @@ PROFILES = {
     },
     "6x6": {
         "matrix_size": 6,
-        "hidden_size": 56,  # Reduced from 56 to reduce oscillations
+        "hidden_size": 36,  # Reduced from 56 to reduce oscillations
         "learning_rate": 0.001,  # Reduced from 0.001 for more stable training
         "weight_decay": 0.01,  # Increased from 0.01 for better regularization
         "epochs": 7000,
